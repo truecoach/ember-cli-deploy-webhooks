@@ -6,13 +6,18 @@ chai.use(chaiAsPromised);
 
 const assert = chai.assert;
 
+let stripAnsi;
+before(async function () {
+  stripAnsi = (await import('strip-ansi')).default;
+});
+
 describe('webhooks plugin', function() {
   let subject, plugin, context, mockUi, mockHTTP, services, serviceCalls, callbackReturnValue;
 
   let BUGSNAG_URI = 'http://notify.bugsnag.com/deploy';
 
   before(function() {
-    subject = require('../../index'); // eslint-disable-line node/no-missing-require
+    subject = require('../../index');
   });
 
   beforeEach(function() {
@@ -44,6 +49,8 @@ describe('webhooks plugin', function() {
         this.messages.push(message);
       }
     };
+
+    plugin.ui = mockUi;
 
     services = {};
 
@@ -82,6 +89,12 @@ describe('webhooks plugin', function() {
         webhookURL: '<your-webhook-url>'
       };
 
+      plugin = subject.createDeployPlugin({
+        name: 'webhooks'
+      });
+
+      plugin.ui = mockUi;
+
       plugin.beforeHook(context);
       plugin.configure(context);
       plugin.setup(context);
@@ -89,7 +102,10 @@ describe('webhooks plugin', function() {
       let messages = mockUi.messages;
 
       assert.isAbove(messages.length, 0);
-      assert.equal(messages[0], '- Warning! bugsnag - Service configuration found but no hook specified in deploy configuration. Service will not be notified.');
+      assert.equal(
+        stripAnsi(messages[0]),
+        '- Warning! bugsnag - Service configuration found but no hook specified in deploy configuration. Service will not be notified.'
+      );
     });
 
     describe('preconfigured services', function() {
@@ -140,6 +156,8 @@ describe('webhooks plugin', function() {
         });
 
         it('is enough to specify specific properties to build the correct url', function() {
+          process.env.DEPLOY_TARGET = 'test';
+
           services.bugsnag = {
             apiKey: '4321',
             didActivate: true
@@ -157,7 +175,7 @@ describe('webhooks plugin', function() {
               let call = serviceCalls[0];
 
               assert.equal(call.url, BUGSNAG_URI);
-              assert.deepEqual(call.body, { apiKey: '4321' });
+              assert.deepEqual(call.body, { apiKey: '4321', releaseStage: 'test' });
             });
         });
 
