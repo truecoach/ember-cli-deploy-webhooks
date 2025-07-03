@@ -94,13 +94,21 @@ module.exports = {
           'displayRevisions', 'didFail'
         ];
 
-        var servicesWithNoHooksConfigured = pick(services, function(service) {
-          return _.intersection(Object.keys(service), hooks).length === 0;
-        });
+        for (var serviceName in services) {
+          if (!services.hasOwnProperty(serviceName)) continue;
 
-        _.forIn(servicesWithNoHooksConfigured, function(value, key) {
-          this.log('Warning! '+key+' - Service configuration found but no hook specified in deploy configuration. Service will not be notified.', { color: 'yellow' });
-        }, this);
+          var serviceConfig = services[serviceName];
+          var configuredHooks = Object.keys(serviceConfig).filter(key =>
+            hooks.includes(key)
+          );
+
+          if (configuredHooks.length === 0) {
+            this.log(
+              `Warning! ${serviceName} - Service configuration found but no hook specified in deploy configuration. Service will not be notified.`,
+              { color: 'yellow' }
+            );
+          }
+        }
       },
 
       willDeploy: notificationHook('willDeploy'),
